@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="my"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Quiz</title>
+<title>intellearn Quiz</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:system-ui,sans-serif;color:#222;background:linear-gradient(135deg,#6a11cb,#2575fc 50%,#ff6ec4);background-size:300% 300%;animation:bg 14s ease infinite;padding:14px}
 @keyframes bg{50%{background-position:100% 50%}}
@@ -21,9 +22,14 @@ input,select,textarea{font:inherit;width:100%;padding:12px;margin:6px 0;border:2
 .b{font-size:12px;padding:3px 10px;border-radius:20px;background:#e8f5e9;color:#2e7d32}.p{background:#fff3cd;color:#8a6d00}
 .it{padding:10px 0;border-bottom:1px solid #eee;font-size:14px}.m{font-size:13px;color:#666}img.q{max-width:100%;border-radius:14px}
 .msg{padding:10px;border-radius:12px;margin:6px 0;white-space:pre-wrap}.me{background:#e8eaf6}.ai{background:#f1f8e9}
+.hd{max-width:560px;margin:0 auto 14px;text-align:center;color:#fff;font-size:26px;font-weight:800;letter-spacing:.5px;text-shadow:0 2px 10px #0006}
+.ft{max-width:560px;margin:18px auto 6px;text-align:center;color:#fffd;font-size:13px}
 canvas{position:fixed;inset:0;pointer-events:none;z-index:9}.fl{animation:fl .5s}@keyframes fl{50%{background:#ff1744}}
 </style></head><body>
-<canvas id="cv"></canvas><div id="app"><div class="card">⏳ Loading…</div></div>
+<canvas id="cv"></canvas>
+<div class="hd">🎓 intellearn Quiz</div>
+<div id="app"><div class="card">⏳ Loading…</div></div>
+<div class="ft">Copyright © intellearn</div>
 <script>
 const sb=supabase.createClient("https://fositnokxzztfwtbydro.supabase.co","sb_publishable_5Hcqx3pkwYmhqS1-2Y-C3A_rrcInJde");
 const $=s=>document.querySelector(s),app=$("#app");
@@ -31,11 +37,14 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function R(f,n=5){for(let i=0;;i++){try{const r=await f();if(!r.error||i>=n-1||!/fetch|network|timeout|load failed/i.test(r.error.message))return r}catch(e){if(i>=n-1)return{error:e}}await sleep(800*2**i)}}
 let U=null,P=null,CATS=[],tm;
+let CFG={free_limit:10,site_title:"intellearn Quiz",site_logo:""};
+function applyCfg(){$(".hd").innerHTML=(CFG.site_logo?`<img src="${esc(CFG.site_logo)}" style="height:40px;vertical-align:middle;border-radius:10px;margin-right:8px">`:"🎓 ")+esc(CFG.site_title);document.title=CFG.site_title}
+async function loadCfg(){const r=await R(()=>sb.from("settings").select("*"));(r.data||[]).forEach(x=>{if(x.key=="free_limit")CFG.free_limit=+x.value||10;if(x.key=="site_title"&&x.value)CFG.site_title=x.value;if(x.key=="site_logo")CFG.site_logo=x.value});applyCfg()}
 const card=h=>app.innerHTML=h;
 const today=()=>new Date().toISOString().slice(0,10);
 const sign=u=>u.is_premium?'<span class="b p">💎 Premium</span>':'<span class="b">🆓 Free</span>';
 
-async function init(){const{data}=await sb.auth.getSession();if(!data.session)return authView();U=data.session.user;await loadP();home()}
+async function init(){await loadCfg();const{data}=await sb.auth.getSession();if(!data.session)return authView();U=data.session.user;await loadP();home()}
 async function loadP(){P=(await R(()=>sb.from("profiles").select("*").eq("id",U.id).single())).data||{}}
 function authView(){card(`<div class=card><h1>🎯 Quiz Master</h1><p class=m>Login / Register</p><input id=n placeholder="နာမည် (Register အတွက်)"><input id=e type=email placeholder="Email"><input id=p type=password placeholder="Password (၆ လုံးအထက်)"><button id=l>🔐 Login</button><button class=y id=r>📝 Register</button><div id=er class=m></div></div>`);
 const go=async reg=>{$("#er").textContent="⏳…";const e=$("#e").value.trim(),p=$("#p").value;const{error}=reg?await sb.auth.signUp({email:e,password:p,options:{data:{name:$("#n").value}}}):await sb.auth.signInWithPassword({email:e,password:p});if(error)$("#er").textContent="❌ "+error.message;else init()};
@@ -45,16 +54,16 @@ async function home(){
 CATS=(await R(()=>sb.from("categories").select("*").order("id"))).data||[];
 card(`<div class=card><div class=row><div><h3>👋 ${esc(P.name||P.email)}</h3>${sign(P)}</div><div>${P.is_admin?'<button class=y id=ad>🛠 Admin</button>':''}<button class=g id=lo>Logout</button></div></div></div>
 <div class=card><h3>📚 Category ရွေးပါ</h3>${CATS.map(c=>`<button class=o data-c=${c.id}>📘 ${esc(c.name)} <span class=m>(${c.secs}s/ပုဒ်)</span></button>`).join("")||"<p class=m>Category မရှိသေးပါ</p>"}</div>
-${P.is_premium?"":`<div class=card style="background:linear-gradient(135deg,#ffe259,#ffa751)"><h3>💎 Premium ဝင်ပါ</h3><p>✅ Category အားလုံး ✅ ဖြေလိုသလောက် (၅/၁၀/၂၀/၃၀…) ✅ နေ့စဉ် ကန့်သတ်ချက်မရှိ<br>🆓 Free က တစ်ရက် ၁၀ ပုဒ်ပဲ ဖြေရပါတယ်</p><button id=pm>💎 Premium ဝင်မယ်</button></div>`}`);
+${P.is_premium?"":`<div class=card style="background:linear-gradient(135deg,#ffe259,#ffa751)"><h3>💎 Premium ဝင်ပါ</h3><p>✅ Category အားလုံး ✅ ဖြေလိုသလောက် (၅/၁၀/၂၀/၃၀…) ✅ နေ့စဉ် ကန့်သတ်ချက်မရှိ<br>🆓 Free က တစ်ရက် ${CFG.free_limit} ပုဒ်ပဲ ဖြေရပါတယ်</p><button id=pm>💎 Premium ဝင်မယ်</button></div>`}`);
 $("#lo").onclick=async()=>{await sb.auth.signOut();authView()};if($("#ad"))$("#ad").onclick=()=>admin("gen");if($("#pm"))$("#pm").onclick=premium;
 document.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>pickCat(+b.dataset.c))}
 
 async function pickCat(id){
 if(P.is_premium){card(`<div class=card><h3>📝 ဘယ်နှပုဒ်ဖြေမလဲ?</h3>${[5,10,20,30].map(n=>`<button data-n=${n}>${n}</button>`).join("")}<input id=cn type=number placeholder="စိတ်ကြိုက်ဂဏန်း"><button class=y id=go>စမယ်</button><button class=g id=bk>⬅ Back</button></div>`);
 document.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>quiz(id,+b.dataset.n));$("#go").onclick=()=>quiz(id,+$("#cn").value||10);$("#bk").onclick=home;return}
-const d=await R(()=>sb.from("daily").select("day").eq("user_id",U.id).eq("day",today()));
-if(d.data&&d.data.length){card(`<div class=card><h3>⏳ ဒီနေ့အတွက် ၁၀ ပုဒ် ဖြေပြီးပါပြီ</h3><p>မနက်ဖြန်ပြန်လာပါ။ 💎 Premium ဆိုရင် ကန့်သတ်ချက်မရှိပါ!</p><button id=pm>💎 Premium ဝင်မယ်</button><button class=g id=bk>⬅ Back</button></div>`);$("#pm").onclick=premium;$("#bk").onclick=home;return}
-await R(()=>sb.from("daily").insert({user_id:U.id}));quiz(id,10)}
+const used=((await R(()=>sb.from("results").select("total").eq("user_id",U.id).gte("created_at",today()+"T00:00:00Z"))).data||[]).reduce((a,x)=>a+x.total,0),left=CFG.free_limit-used;
+if(left<=0){card(`<div class=card><h3>⏳ ဒီနေ့အတွက် ${CFG.free_limit} ပုဒ် ဖြေပြီးပါပြီ</h3><p>မနက်ဖြန်ပြန်လာပါ။ 💎 Premium ဆိုရင် ကန့်သတ်ချက်မရှိပါ!</p><button id=pm>💎 Premium ဝင်မယ်</button><button class=g id=bk>⬅ Back</button></div>`);$("#pm").onclick=premium;$("#bk").onclick=home;return}
+quiz(id,left)}
 
 let Q=[],qi=0,sc=0,left=0,secs=30,t0=0,lock=false,cat=null;
 async function quiz(id,n){cat=CATS.find(c=>c.id==id);secs=cat.secs;
@@ -85,20 +94,41 @@ if(c.error)return $("#er").textContent="❌ "+c.error.message;await loadP();aler
 
 // ---------------- Admin ----------------
 async function readFile(f){if(!f)return{};const n=f.name.toLowerCase();
-if(f.type.startsWith("image/")){const d=await new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result.split(",")[1]);x.readAsDataURL(f)});return{image:{mime:f.type,data:d}}}
+const b64=b=>new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result.split(",")[1]);x.readAsDataURL(b)});
+if(f.type.startsWith("image/")){try{const bm=await createImageBitmap(f),k=Math.min(1,1600/Math.max(bm.width,bm.height)),c2=document.createElement("canvas");c2.width=Math.round(bm.width*k);c2.height=Math.round(bm.height*k);c2.getContext("2d").drawImage(bm,0,0,c2.width,c2.height);return{image:{mime:"image/jpeg",data:c2.toDataURL("image/jpeg",.85).split(",")[1]}}}catch(e){return{image:{mime:f.type,data:await b64(f)}}}}
+if(n.endsWith(".pdf")||/^(audio|video)\//.test(f.type)){const mime=n.endsWith(".pdf")?"application/pdf":f.type;const p=U.id+"/"+Date.now()+"_"+(n.replace(/[^a-z0-9.]/g,"")||"f");
+const u=await R(()=>sb.storage.from("uploads").upload(p,f,{contentType:mime}));if(u.error)throw u.error;return{path:p,mime}}
+if(/\.(xlsx|xls|csv)$/.test(n)){const wb=XLSX.read(await f.arrayBuffer());return{text:wb.SheetNames.map(s=>XLSX.utils.sheet_to_csv(wb.Sheets[s])).join("\n")}}
 if(n.endsWith(".docx"))return{text:(await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()})).value};
 if(n.endsWith(".pptx")){const z=await JSZip.loadAsync(await f.arrayBuffer());let t="";for(const k of Object.keys(z.files).filter(k=>/ppt\/slides\/slide\d+\.xml$/.test(k)))t+=[...(await z.files[k].async("string")).matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]).join(" ")+"\n";return{text:t}}
 return{text:await f.text()}}
 async function callAI(body){let m="";for(let i=0;i<2;i++){const{data,error}=await sb.functions.invoke("ai",{body});if(!error&&data&&!data.error)return data;m=error?.message||data?.error||"";try{m=(await error.context.json()).error||m}catch{}if(/Admin|Login|Gemini:/.test(m))return{error:m};await sleep(1500)}return{error:m||"လိုင်းကျပ်နေသည်၊ ပြန်စမ်းပါ"}}
-const TABS={gen:"🤖 Quiz",chat:"💬 AI Chat",cat:"📁 Category",users:"👥 Users",res:"📊 ရလဒ်",pay:"💳 KPay/ပြေစာ"};
+const TABS={gen:"🤖 Quiz",qs:"❓ မေးခွန်း",chat:"💬 AI Chat",cat:"📁 Category",users:"👥 Users",res:"📊 ရလဒ်",pay:"💳 KPay/ပြေစာ",set:"⚙️ Settings"};
 async function admin(t){card(`<div class=card><div class=row><h3>🛠 Admin Panel</h3><button class=g id=hm>🏠</button></div><div class=tabs>${Object.entries(TABS).map(([k,v])=>`<button class="${k==t?"":"g"}" data-t=${k}>${v}</button>`).join("")}</div></div><div class=card id=body>⏳</div>`);
 $("#hm").onclick=home;document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>admin(b.dataset.t));
 CATS=(await R(()=>sb.from("categories").select("*").order("id"))).data||[];const B=$("#body"),opts=CATS.map(c=>`<option value=${c.id}>${esc(c.name)}</option>`).join("");
-if(t=="gen"){B.innerHTML=`<select id=c>${opts}</select><input id=n type=number value=10 placeholder="ပုဒ်ရေ"><textarea id=tx rows=5 placeholder="Text ရိုက်/paste လုပ်ပါ (သို့) ဖိုင်ရွေးပါ"></textarea><input id=f type=file accept="image/*,.txt,.docx,.pptx"><button id=g>🤖 Quiz ထုတ်မယ်</button><div id=st class=m></div>`;
+if(t=="gen"){B.innerHTML=`<select id=c>${opts}</select><input id=n type=number value=10 placeholder="ပုဒ်ရေ"><textarea id=tx rows=5 placeholder="Text ရိုက်/paste လုပ်ပါ (သို့) ဖိုင်ရွေးပါ"></textarea><input id=f type=file accept="image/*,.pdf,.txt,.docx,.pptx,.xlsx,.xls,.csv"><button id=g>🤖 Quiz ထုတ်မယ်</button><div id=st class=m></div>`;
 $("#g").onclick=async()=>{if(!$("#c").value)return $("#st").textContent="Category အရင်ဆောက်ပါ";$("#st").textContent="⏳ ထုတ်နေသည်… (ခဏစောင့်ပါ)";
-try{const fr=await readFile($("#f").files[0]);const r=await callAI({mode:"quiz",count:+$("#n").value||10,text:$("#tx").value+"\n"+(fr.text||""),image:fr.image});if(r.error)return $("#st").textContent="❌ "+r.error;
+try{const fr=await readFile($("#f").files[0]);const r=await callAI({mode:"quiz",count:+$("#n").value||10,text:$("#tx").value+"\n"+(fr.text||""),image:fr.image,path:fr.path,mime:fr.mime});if(r.error)return $("#st").textContent="❌ "+r.error;
 const rows=r.questions.map(x=>({cat_id:+$("#c").value,q:x.q,options:x.o,answer:+x.a,explanation:x.e||""}));const i=await R(()=>sb.from("questions").insert(rows));$("#st").textContent=i.error?"❌ "+i.error.message:"✅ မေးခွန်း "+rows.length+" ပုဒ် ထည့်ပြီး"}catch(e){$("#st").textContent="❌ "+e.message}}}
 if(t=="chat"){B.innerHTML=`<div id=log></div><textarea id=m rows=2 placeholder="မေးပါ…"></textarea><button id=s>➤ ပို့မယ်</button>`;$("#s").onclick=async()=>{const m=$("#m").value.trim();if(!m)return;$("#m").value="";$("#log").innerHTML+=`<div class="msg me">${esc(m)}</div>`;const r=await callAI({mode:"chat",text:m});$("#log").innerHTML+=`<div class="msg ai">${esc(r.text||"❌ "+r.error)}</div>`}}
+if(t=="qs"){B.innerHTML=`<select id=qc>${opts}</select><div id=ql></div>`;
+const form=(x,id)=>`<div class=it data-id="${id}"><textarea rows=2 data-f=q placeholder="မေးခွန်း">${esc(x.q||"")}</textarea>${[0,1,2,3].map(k=>`<input data-f=o${k} placeholder="${"ABCD"[k]}" value="${esc((x.options||[])[k]||"")}">`).join("")}<select data-f=a>${[0,1,2,3].map(k=>`<option value=${k} ${x.answer==k?"selected":""}>အဖြေမှန်: ${"ABCD"[k]}</option>`).join("")}</select><input data-f=e placeholder="ရှင်းလင်းချက်" value="${esc(x.explanation||"")}"><button data-sv>💾 သိမ်း</button>${id=="new"?"":'<button class=r data-del>🗑</button>'}</div>`;
+const load=async()=>{const cid=+$("#qc").value;if(!cid){$("#ql").textContent="Category အရင်ဆောက်ပါ";return}
+const rs=(await R(()=>sb.from("questions").select("*").eq("cat_id",cid).order("id",{ascending:false}).limit(200))).data||[];
+$("#ql").innerHTML=`<h3>➕ အသစ်ထည့်ရန်</h3>${form({},"new")}<p class=m>${rs.length} ပုဒ်</p>`+rs.map(x=>form(x,x.id)).join("");
+document.querySelectorAll("[data-sv]").forEach(b=>b.onclick=async()=>{const w=b.closest(".it"),g=f=>w.querySelector(`[data-f=${f}]`).value.trim(),id=w.dataset.id;
+const row={cat_id:cid,q:g("q"),options:[0,1,2,3].map(k=>g("o"+k)),answer:+g("a"),explanation:g("e")};
+if(!row.q||row.options.some(o=>!o))return alert("မေးခွန်းနဲ့ ရွေးချယ်စရာ ၄ ခုလုံး ဖြည့်ပါ");
+const r=await R(()=>id=="new"?sb.from("questions").insert(row):sb.from("questions").update(row).eq("id",id));if(r.error)return alert(r.error.message);if(id=="new")load();else b.textContent="✅"});
+document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{if(confirm("ဖျက်မလား?")){await R(()=>sb.from("questions").delete().eq("id",b.closest(".it").dataset.id));load()}})};
+$("#qc").onchange=load;load()}
+if(t=="set"){B.innerHTML=`<label class=m>ခေါင်းစဉ်</label><input id=ti value="${esc(CFG.site_title)}"><label class=m>Free user နေ့စဉ် ဖြေခွင့် (ပုဒ်ရေ)</label><input id=fl type=number min=1 value=${CFG.free_limit}><label class=m>Logo (ပုံ)</label>${CFG.site_logo?`<img class=q style="max-height:80px" src="${esc(CFG.site_logo)}"><br><button class=g id=rl>🗑 Logo ဖယ်မယ်</button>`:""}<input id=lf type=file accept="image/*"><button id=sv>💾 သိမ်းမယ်</button><div id=st class=m></div>`;
+const put=(key,value)=>R(()=>sb.from("settings").upsert({key,value:String(value)}));
+if($("#rl"))$("#rl").onclick=async()=>{await put("site_logo","");await loadCfg();admin("set")};
+$("#sv").onclick=async()=>{$("#st").textContent="⏳…";const f=$("#lf").files[0];
+if(f){const p="logo/"+Date.now()+".jpg";const u=await R(()=>sb.storage.from("receipts").upload(p,f));if(u.error)return $("#st").textContent="❌ "+u.error.message;await put("site_logo",sb.storage.from("receipts").getPublicUrl(p).data.publicUrl)}
+await put("site_title",$("#ti").value.trim()||"intellearn Quiz");await put("free_limit",Math.max(1,+$("#fl").value||10));await loadCfg();$("#st").textContent="✅ သိမ်းပြီး";if(f)admin("set")}}
 if(t=="cat"){B.innerHTML=`<input id=nm placeholder="Category နာမည်"><input id=sc type=number value=30 placeholder="စက္ကန့်/ပုဒ်"><button id=ad>➕ ထည့်မယ်</button>`+CATS.map(c=>`<div class=it>${esc(c.name)} • <input style="width:70px;display:inline;padding:6px" type=number value=${c.secs} data-s=${c.id}>s <button class=g data-u=${c.id}>💾</button><button class=r data-d=${c.id}>🗑</button></div>`).join("");
 $("#ad").onclick=async()=>{await R(()=>sb.from("categories").insert({name:$("#nm").value,secs:+$("#sc").value||30}));admin("cat")};
 document.querySelectorAll("[data-u]").forEach(b=>b.onclick=async()=>{await R(()=>sb.from("categories").update({secs:+document.querySelector(`[data-s="${b.dataset.u}"]`).value}).eq("id",b.dataset.u));b.textContent="✅"});
