@@ -31,7 +31,10 @@ canvas{position:fixed;inset:0;pointer-events:none;z-index:9}.fl{animation:fl .5s
 <div id="app"><div class="card">⏳ Loading…</div></div>
 <div class="ft">Copyright © intellearn</div>
 <script>
-const sb=supabase.createClient("https://quiz-proxy.cnbintell.workers.dev","sb_publishable_5Hcqx3pkwYmhqS1-2Y-C3A_rrcInJde");
+const PROXY="https://quiz-proxy.cnbintell.workers.dev",DIRECT="https://fositnokxzztfwtbydro.supabase.co";let bases=[PROXY,DIRECT];
+async function sbFetch(u,o={}){const path=String(u).replace(PROXY,""),ms=/\/(functions|storage)\//.test(path)?120000:15000;let err;
+for(const b of [...bases]){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(b+path,{...o,signal:c.signal});if(b!=bases[0])bases=[b,...bases.filter(x=>x!=b)];return r}catch(e){err=e}finally{clearTimeout(t)}}throw err}
+const sb=supabase.createClient(PROXY,"sb_publishable_5Hcqx3pkwYmhqS1-2Y-C3A_rrcInJde",{global:{fetch:sbFetch}});
 const $=s=>document.querySelector(s),app=$("#app");
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -44,7 +47,7 @@ const card=h=>app.innerHTML=h;
 const today=()=>new Date().toISOString().slice(0,10);
 const sign=u=>u.is_premium?'<span class="b p">💎 Premium</span>':'<span class="b">🆓 Free</span>';
 
-async function init(){await loadCfg();const{data}=await sb.auth.getSession();if(!data.session)return authView();U=data.session.user;await loadP();home()}
+async function init(){applyCfg();loadCfg();const{data}=await sb.auth.getSession();if(!data.session)return authView();U=data.session.user;await loadP();home()}
 async function loadP(){P=(await R(()=>sb.from("profiles").select("*").eq("id",U.id).single())).data||{}}
 function authView(){card(`<div class=card><h1>🎯 Quiz Master</h1><p class=m>Login / Register</p><input id=n placeholder="နာမည် (Register အတွက်)"><input id=e type=email placeholder="Email"><input id=p type=password placeholder="Password (၆ လုံးအထက်)"><button id=l>🔐 Login</button><button class=y id=r>📝 Register</button><div id=er class=m></div></div>`);
 const go=async reg=>{$("#er").textContent="⏳…";const e=$("#e").value.trim(),p=$("#p").value;const{error}=reg?await sb.auth.signUp({email:e,password:p,options:{data:{name:$("#n").value}}}):await sb.auth.signInWithPassword({email:e,password:p});if(error)$("#er").textContent="❌ "+error.message;else init()};
