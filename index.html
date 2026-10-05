@@ -89,7 +89,7 @@ if(f.type.startsWith("image/")){const d=await new Promise(r=>{const x=new FileRe
 if(n.endsWith(".docx"))return{text:(await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()})).value};
 if(n.endsWith(".pptx")){const z=await JSZip.loadAsync(await f.arrayBuffer());let t="";for(const k of Object.keys(z.files).filter(k=>/ppt\/slides\/slide\d+\.xml$/.test(k)))t+=[...(await z.files[k].async("string")).matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]).join(" ")+"\n";return{text:t}}
 return{text:await f.text()}}
-async function callAI(body){for(let i=0;i<3;i++){const{data,error}=await sb.functions.invoke("ai",{body});if(!error&&data&&!data.error)return data;let m=error?.message||data?.error;try{m=(await error.context.json()).error}catch{}if(/Admin|Login/.test(m||""))return{error:m};await sleep(1500*(i+1))}return{error:"လိုင်းကျပ်နေသည်၊ ပြန်စမ်းပါ"}}
+async function callAI(body){let m="";for(let i=0;i<2;i++){const{data,error}=await sb.functions.invoke("ai",{body});if(!error&&data&&!data.error)return data;m=error?.message||data?.error||"";try{m=(await error.context.json()).error||m}catch{}if(/Admin|Login|Gemini:/.test(m))return{error:m};await sleep(1500)}return{error:m||"လိုင်းကျပ်နေသည်၊ ပြန်စမ်းပါ"}}
 const TABS={gen:"🤖 Quiz",chat:"💬 AI Chat",cat:"📁 Category",users:"👥 Users",res:"📊 ရလဒ်",pay:"💳 KPay/ပြေစာ"};
 async function admin(t){card(`<div class=card><div class=row><h3>🛠 Admin Panel</h3><button class=g id=hm>🏠</button></div><div class=tabs>${Object.entries(TABS).map(([k,v])=>`<button class="${k==t?"":"g"}" data-t=${k}>${v}</button>`).join("")}</div></div><div class=card id=body>⏳</div>`);
 $("#hm").onclick=home;document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>admin(b.dataset.t));
