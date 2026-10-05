@@ -31,7 +31,7 @@ canvas{position:fixed;inset:0;pointer-events:none;z-index:9}.fl{animation:fl .5s
 <div id="app"><div class="card">⏳ Loading…</div></div>
 <div class="ft">Copyright © intellearn</div>
 <script>
-const sb=supabase.createClient("https://fositnokxzztfwtbydro.supabase.co","sb_publishable_5Hcqx3pkwYmhqS1-2Y-C3A_rrcInJde");
+const sb=supabase.createClient("https://proxy.cnbintell.workers.dev","sb_publishable_5Hcqx3pkwYmhqS1-2Y-C3A_rrcInJde");
 const $=s=>document.querySelector(s),app=$("#app");
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
