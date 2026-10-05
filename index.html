@@ -23,7 +23,7 @@ input,select,textarea{font:inherit;width:100%;padding:12px;margin:6px 0;border:2
 .msg{padding:10px;border-radius:12px;margin:6px 0;white-space:pre-wrap}.me{background:#e8eaf6}.ai{background:#f1f8e9}
 canvas{position:fixed;inset:0;pointer-events:none;z-index:9}.fl{animation:fl .5s}@keyframes fl{50%{background:#ff1744}}
 </style></head><body>
-<canvas id="c"></canvas><div id="app"><div class="card">⏳ Loading…</div></div>
+<canvas id="cv"></canvas><div id="app"><div class="card">⏳ Loading…</div></div>
 <script>
 const sb=supabase.createClient("https://fositnokxzztfwtbydro.supabase.co","sb_publishable_5Hcqx3pkwYmhqS1-2Y-C3A_rrcInJde");
 const $=s=>document.querySelector(s),app=$("#app");
@@ -115,7 +115,7 @@ await R(()=>sb.from("settings").upsert({key:"kpay_note",value:$("#nt").value}));
 document.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{await R(()=>sb.from("profiles").update({is_premium:false}).eq("id",b.dataset.r));admin("pay")})}}
 
 // confetti
-const cv=$("#c"),cx=cv.getContext("2d");let ps=[];const rz=()=>{cv.width=innerWidth;cv.height=innerHeight};rz();onresize=rz;
+const cv=$("#cv"),cx=cv.getContext("2d");let ps=[];const rz=()=>{cv.width=innerWidth;cv.height=innerHeight};rz();onresize=rz;
 function boom(n=1){const was=ps.length;for(let j=0;j<80*n;j++)ps.push({x:innerWidth/2,y:innerHeight/3,vx:(Math.random()-.5)*14,vy:Math.random()*-12-2,r:Math.random()*5+2,c:`hsl(${Math.random()*360},90%,60%)`,l:90});if(!was)lp()}
 function lp(){cx.clearRect(0,0,cv.width,cv.height);ps=ps.filter(p=>p.l-->0);ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.4;cx.fillStyle=p.c;cx.globalAlpha=p.l/90;cx.fillRect(p.x,p.y,p.r,p.r)});if(ps.length)requestAnimationFrame(lp);else cx.clearRect(0,0,cv.width,cv.height)}
 init();
