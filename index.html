@@ -46,19 +46,31 @@ async function loadCfg(){const r=await R(()=>sb.from("settings").select("*"));(r
 const card=h=>app.innerHTML=h;
 const today=()=>new Date().toISOString().slice(0,10);
 const sign=u=>u.is_premium?'<span class="b p">💎 Premium</span>':'<span class="b">🆓 Free</span>';
+const PH="@phone.intellearn.com";
+function toEmail(v){v=v.trim();if(v.includes("@"))return v.toLowerCase();let d=v.replace(/\D/g,"");if(d.startsWith("959"))d="0"+d.slice(2);else if(d&&!d.startsWith("0"))d="0"+d;return d+PH}
+const disp=e=>String(e||"").endsWith(PH)?"📱 "+String(e).split("@")[0]:(e||"");
+let AC;function tone(f,d,type,v,when){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state=="suspended")AC.resume();const o=AC.createOscillator(),g=AC.createGain(),s=AC.currentTime+(when||0);o.type=type;o.frequency.value=f;o.connect(g);g.connect(AC.destination);g.gain.setValueAtTime(v,s);g.gain.exponentialRampToValueAtTime(.001,s+d);o.start(s);o.stop(s+d)}catch(e){}}
+const vib=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
+const good=()=>{tone(660,.14,"sine",.25,0);tone(880,.16,"sine",.25,.1);tone(1175,.28,"sine",.25,.2);vib(60)};
+const bad=()=>{tone(220,.35,"sawtooth",.15,0);tone(160,.45,"sawtooth",.15,.25);vib([150,80,150])};
 
-async function init(){applyCfg();loadCfg();const{data}=await sb.auth.getSession();if(!data.session)return authView();U=data.session.user;await loadP();home()}
+async function init(){applyCfg();loadCfg();const{data}=await sb.auth.getSession();if(!data.session)return authView();U=data.session.user;await loadP();if(await chk())return;if(!window.__t)window.__t=setInterval(chk,20000);home()}
+async function chk(){if(!U||(P&&P.is_admin))return false;const r=await sb.from("profiles").select("session_id").eq("id",U.id).single();let mine=null;try{mine=localStorage.getItem("sid")}catch(x){}
+if(r.data&&r.data.session_id&&r.data.session_id!==mine){clearInterval(window.__t);window.__t=0;clearInterval(tm);U=null;try{localStorage.removeItem("sid")}catch(x){}await sb.auth.signOut();authView();$("#er").textContent="⚠️ တခြားစက်မှာ ဝင်သွားလို့ ဒီစက်က ထွက်သွားပါပြီ";return true}return false}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()});
 async function loadP(){P=(await R(()=>sb.from("profiles").select("*").eq("id",U.id).single())).data||{}}
-function authView(){card(`<div class=card><h1>🎯 Quiz Master</h1><p class=m>Login / Register</p><input id=n placeholder="နာမည် (Register အတွက်)"><input id=e type=email placeholder="Email"><input id=p type=password placeholder="Password (၆ လုံးအထက်)"><button id=l>🔐 Login</button><button class=y id=r>📝 Register</button><div id=er class=m></div></div>`);
-const go=async reg=>{$("#er").textContent="⏳…";const e=$("#e").value.trim(),p=$("#p").value;const{error}=reg?await sb.auth.signUp({email:e,password:p,options:{data:{name:$("#n").value}}}):await sb.auth.signInWithPassword({email:e,password:p});if(error)$("#er").textContent="❌ "+error.message;else init()};
+function authView(){card(`<div class=card><h1>🎯 Quiz Master</h1><p class=m>Login / Register</p><input id=n placeholder="နာမည် (Register အတွက်)"><input id=e type=text inputmode=email autocapitalize=off placeholder="ဖုန်းနံပါတ် (သို့) Email"><input id=p type=password placeholder="Password (၆ လုံးအထက်)"><button id=l>🔐 Login</button><button class=y id=r>📝 Register</button><div id=er class=m></div></div>`);
+const go=async reg=>{$("#er").textContent="⏳…";const e=toEmail($("#e").value),p=$("#p").value;const{error}=reg?await sb.auth.signUp({email:e,password:p,options:{data:{name:$("#n").value}}}):await sb.auth.signInWithPassword({email:e,password:p});if(error)return $("#er").textContent="❌ "+error.message;
+const sid=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now());try{localStorage.setItem("sid",sid)}catch(x){}
+await R(()=>sb.rpc("set_session",{sid}));init()};
 $("#l").onclick=()=>go(0);$("#r").onclick=()=>go(1)}
 
 async function home(){
 CATS=(await R(()=>sb.from("categories").select("*").order("id"))).data||[];
-card(`<div class=card><div class=row><div><h3>👋 ${esc(P.name||P.email)}</h3>${sign(P)}</div><div>${P.is_admin?'<button class=y id=ad>🛠 Admin</button>':''}<button class=g id=lo>Logout</button></div></div></div>
+card(`<div class=card><div class=row><div><h3>👋 ${esc(P.name||disp(P.email))}</h3>${sign(P)}</div><div>${P.is_admin?'<button class=y id=ad>🛠 Admin</button>':''}<button class=g id=lo>Logout</button></div></div></div>
 <div class=card><h3>📚 Category ရွေးပါ</h3>${CATS.map(c=>`<button class=o data-c=${c.id}>📘 ${esc(c.name)} <span class=m>(${c.secs}s/ပုဒ်)</span></button>`).join("")||"<p class=m>Category မရှိသေးပါ</p>"}</div>
 ${P.is_premium?"":`<div class=card style="background:linear-gradient(135deg,#ffe259,#ffa751)"><h3>💎 Premium ဝင်ပါ</h3><p>✅ Category အားလုံး ✅ ဖြေလိုသလောက် (၅/၁၀/၂၀/၃၀…) ✅ နေ့စဉ် ကန့်သတ်ချက်မရှိ<br>🆓 Free က တစ်ရက် ${CFG.free_limit} ပုဒ်ပဲ ဖြေရပါတယ်</p><button id=pm>💎 Premium ဝင်မယ်</button></div>`}`);
-$("#lo").onclick=async()=>{await sb.auth.signOut();authView()};if($("#ad"))$("#ad").onclick=()=>admin("gen");if($("#pm"))$("#pm").onclick=premium;
+$("#lo").onclick=async()=>{clearInterval(window.__t);window.__t=0;await sb.auth.signOut();U=null;authView()};if($("#ad"))$("#ad").onclick=()=>admin("gen");if($("#pm"))$("#pm").onclick=premium;
 document.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>pickCat(+b.dataset.c))}
 
 async function pickCat(id){
@@ -79,7 +91,7 @@ document.querySelectorAll(".o").forEach(b=>b.onclick=()=>pick(+b.dataset.k));
 clearInterval(tm);tm=setInterval(()=>{left--;$("#t").textContent=left;$("#bar").style.width=left/secs*100+"%";if(left<=0)pick(-1)},1000)}
 function pick(k){if(lock)return;lock=true;clearInterval(tm);const q=Q[qi],ok=k==q.answer,bs=document.querySelectorAll(".o");
 bs[q.answer].classList.add("ok");if(k>=0&&!ok)bs[k].classList.add("no");
-if(ok){sc++;boom()}else{document.body.classList.add("fl");setTimeout(()=>document.body.classList.remove("fl"),500)}
+if(ok){sc++;boom();good()}else{bad();document.body.classList.add("fl");setTimeout(()=>document.body.classList.remove("fl"),500)}
 $("#ex").innerHTML=(ok?"🎉 မှန်ပါတယ်!":k<0?"⌛ အချိန်ကုန်ပြီ":"💥 မှားပါတယ်")+"<br>💡 "+esc(q.explanation||"");
 setTimeout(()=>{qi++;ask()},ok?1300:2500)}
 async function fin(){const s=Math.round((Date.now()-t0)/1000),pc=Math.round(sc*100/Q.length);
@@ -110,9 +122,9 @@ const TABS={gen:"🤖 Quiz",qs:"❓ မေးခွန်း",chat:"💬 AI Chat
 async function admin(t){card(`<div class=card><div class=row><h3>🛠 Admin Panel</h3><button class=g id=hm>🏠</button></div><div class=tabs>${Object.entries(TABS).map(([k,v])=>`<button class="${k==t?"":"g"}" data-t=${k}>${v}</button>`).join("")}</div></div><div class=card id=body>⏳</div>`);
 $("#hm").onclick=home;document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>admin(b.dataset.t));
 CATS=(await R(()=>sb.from("categories").select("*").order("id"))).data||[];const B=$("#body"),opts=CATS.map(c=>`<option value=${c.id}>${esc(c.name)}</option>`).join("");
-if(t=="gen"){B.innerHTML=`<select id=c>${opts}</select><input id=n type=number value=10 placeholder="ပုဒ်ရေ"><textarea id=tx rows=5 placeholder="Text ရိုက်/paste လုပ်ပါ (သို့) ဖိုင်ရွေးပါ"></textarea><input id=f type=file accept="image/*,.pdf,.txt,.docx,.pptx,.xlsx,.xls,.csv"><button id=g>🤖 Quiz ထုတ်မယ်</button><div id=st class=m></div>`;
+if(t=="gen"){B.innerHTML=`<select id=c>${opts}</select><input id=n type=number value=10 placeholder="ပုဒ်ရေ"><textarea id=cm rows=3 placeholder="🤖 AI ကို command ပေးပါ (ဥပမာ: မြန်မာနိုင်ငံ ပထဝီအကြောင်း အလယ်အလတ် မေးခွန်း ထုတ်ပေး)"></textarea><textarea id=tx rows=5 placeholder="Text ရိုက်/paste လုပ်ပါ (သို့) ဖိုင်ရွေးပါ"></textarea><input id=f type=file accept="image/*,.pdf,.txt,.docx,.pptx,.xlsx,.xls,.csv"><button id=g>🤖 Quiz ထုတ်မယ်</button><div id=st class=m></div>`;
 $("#g").onclick=async()=>{if(!$("#c").value)return $("#st").textContent="Category အရင်ဆောက်ပါ";$("#st").textContent="⏳ ထုတ်နေသည်… (ခဏစောင့်ပါ)";
-try{const fr=await readFile($("#f").files[0]);const r=await callAI({mode:"quiz",count:+$("#n").value||10,text:$("#tx").value+"\n"+(fr.text||""),image:fr.image,path:fr.path,mime:fr.mime});if(r.error)return $("#st").textContent="❌ "+r.error;
+try{const fr=await readFile($("#f").files[0]);const r=await callAI({mode:"quiz",count:+$("#n").value||10,text:($("#cm").value.trim()?"ADMIN INSTRUCTION (follow this; if no content is given, use your own knowledge): "+$("#cm").value.trim()+"\n\nCONTENT:\n":"")+$("#tx").value+"\n"+(fr.text||""),image:fr.image,path:fr.path,mime:fr.mime});if(r.error)return $("#st").textContent="❌ "+r.error;
 const rows=r.questions.map(x=>({cat_id:+$("#c").value,q:x.q,options:x.o,answer:+x.a,explanation:x.e||""}));const i=await R(()=>sb.from("questions").insert(rows));$("#st").textContent=i.error?"❌ "+i.error.message:"✅ မေးခွန်း "+rows.length+" ပုဒ် ထည့်ပြီး"}catch(e){$("#st").textContent="❌ "+e.message}}}
 if(t=="chat"){B.innerHTML=`<div id=log></div><textarea id=m rows=2 placeholder="မေးပါ…"></textarea><button id=s>➤ ပို့မယ်</button>`;$("#s").onclick=async()=>{const m=$("#m").value.trim();if(!m)return;$("#m").value="";$("#log").innerHTML+=`<div class="msg me">${esc(m)}</div>`;const r=await callAI({mode:"chat",text:m});$("#log").innerHTML+=`<div class="msg ai">${esc(r.text||"❌ "+r.error)}</div>`}}
 if(t=="qs"){B.innerHTML=`<select id=qc>${opts}</select><div id=ql></div>`;
@@ -136,12 +148,12 @@ if(t=="cat"){B.innerHTML=`<input id=nm placeholder="Category နာမည်"><i
 $("#ad").onclick=async()=>{await R(()=>sb.from("categories").insert({name:$("#nm").value,secs:+$("#sc").value||30}));admin("cat")};
 document.querySelectorAll("[data-u]").forEach(b=>b.onclick=async()=>{await R(()=>sb.from("categories").update({secs:+document.querySelector(`[data-s="${b.dataset.u}"]`).value}).eq("id",b.dataset.u));b.textContent="✅"});
 document.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{if(confirm("မေးခွန်းတွေပါ ပျက်မယ်၊ သေချာလား?")){await R(()=>sb.from("categories").delete().eq("id",b.dataset.d));admin("cat")}})}
-if(t=="users"){const us=(await R(()=>sb.from("profiles").select("*").order("created_at",{ascending:false}))).data||[];B.innerHTML=`<p class=m>${us.length} ဦး</p>`+us.map(u=>`<div class=it><b>${esc(u.name||"-")}</b> ${sign(u)}${u.is_admin?' <span class="b p">Admin</span>':''}<br><span class=m>${esc(u.email)}</span><br><button class="${u.is_premium?"r":""}" data-p=${u.id} data-v=${u.is_premium}>${u.is_premium?"💎 ပြန်ဖြုတ်":"💎 Premium ပေး"}</button>${u.id!=U.id?`<button class=g data-a=${u.id} data-v=${u.is_admin}>${u.is_admin?"Admin ဖြုတ်":"Admin ခန့်"}</button>`:""}</div>`).join("");
+if(t=="users"){const us=(await R(()=>sb.from("profiles").select("*").order("created_at",{ascending:false}))).data||[];B.innerHTML=`<p class=m>${us.length} ဦး</p>`+us.map(u=>`<div class=it><b>${esc(u.name||"-")}</b> ${sign(u)}${u.is_admin?' <span class="b p">Admin</span>':''}<br><span class=m>${esc(disp(u.email))}</span><br><button class="${u.is_premium?"r":""}" data-p=${u.id} data-v=${u.is_premium}>${u.is_premium?"💎 ပြန်ဖြုတ်":"💎 Premium ပေး"}</button>${u.id!=U.id?`<button class=g data-a=${u.id} data-v=${u.is_admin}>${u.is_admin?"Admin ဖြုတ်":"Admin ခန့်"}</button>`:""}</div>`).join("");
 document.querySelectorAll("[data-p]").forEach(b=>b.onclick=async()=>{await R(()=>sb.from("profiles").update({is_premium:b.dataset.v!="true"}).eq("id",b.dataset.p));admin("users")});
 document.querySelectorAll("[data-a]").forEach(b=>b.onclick=async()=>{await R(()=>sb.from("profiles").update({is_admin:b.dataset.v!="true"}).eq("id",b.dataset.a));admin("users")})}
-if(t=="res"){const rs=(await R(()=>sb.from("results").select("*,profiles(name,email)").order("created_at",{ascending:false}).limit(100))).data||[];B.innerHTML=rs.map(r=>`<div class=it><b>${esc(r.profiles?.name||r.profiles?.email)}</b> • ${esc(CATS.find(c=>c.id==r.cat_id)?.name||r.cat_id)}<br>✅ ${r.score}/${r.total} • ⏱ ${r.secs}s <span class=m>${new Date(r.created_at).toLocaleString()}</span></div>`).join("")||"မရှိသေးပါ"}
+if(t=="res"){const rs=(await R(()=>sb.from("results").select("*,profiles(name,email)").order("created_at",{ascending:false}).limit(100))).data||[];B.innerHTML=rs.map(r=>`<div class=it><b>${esc(r.profiles?.name||disp(r.profiles?.email))}</b> • ${esc(CATS.find(c=>c.id==r.cat_id)?.name||r.cat_id)}<br>✅ ${r.score}/${r.total} • ⏱ ${r.secs}s <span class=m>${new Date(r.created_at).toLocaleString()}</span></div>`).join("")||"မရှိသေးပါ"}
 if(t=="pay"){const rc=(await R(()=>sb.from("receipts").select("*,profiles(name,email,is_premium)").order("created_at",{ascending:false}).limit(30))).data||[];
-B.innerHTML=`<h3>KPay QR ပြင်ရန်</h3><input id=f type=file accept="image/*"><textarea id=nt rows=3 placeholder="KPay အချက်အလက် (နာမည်၊ ဖုန်း၊ ပမာဏ)"></textarea><button id=sv>💾 သိမ်းမယ်</button><div id=st class=m></div><h3>🧾 ပြေစာများ</h3>`+rc.map(r=>`<div class=it><b>${esc(r.profiles?.name||r.profiles?.email)}</b> ${r.profiles?.is_premium?"💎":"❌"}<br><a href="${esc(r.image_url)}" target=_blank><img class=q style="max-height:160px" src="${esc(r.image_url)}"></a><br><button class=r data-r=${r.user_id}>ပြန်ဖြုတ်ချ</button></div>`).join("");
+B.innerHTML=`<h3>KPay QR ပြင်ရန်</h3><input id=f type=file accept="image/*"><textarea id=nt rows=3 placeholder="KPay အချက်အလက် (နာမည်၊ ဖုန်း၊ ပမာဏ)"></textarea><button id=sv>💾 သိမ်းမယ်</button><div id=st class=m></div><h3>🧾 ပြေစာများ</h3>`+rc.map(r=>`<div class=it><b>${esc(r.profiles?.name||disp(r.profiles?.email))}</b> ${r.profiles?.is_premium?"💎":"❌"}<br><a href="${esc(r.image_url)}" target=_blank><img class=q style="max-height:160px" src="${esc(r.image_url)}"></a><br><button class=r data-r=${r.user_id}>ပြန်ဖြုတ်ချ</button></div>`).join("");
 const cur=(await R(()=>sb.from("settings").select("*").eq("key","kpay_note"))).data;if(cur&&cur[0])$("#nt").value=cur[0].value;
 $("#sv").onclick=async()=>{$("#st").textContent="⏳…";const f=$("#f").files[0];if(f){const p="kpay/"+Date.now()+".jpg";const u=await R(()=>sb.storage.from("receipts").upload(p,f));if(u.error)return $("#st").textContent="❌ "+u.error.message;await R(()=>sb.from("settings").upsert({key:"kpay_img",value:sb.storage.from("receipts").getPublicUrl(p).data.publicUrl}))}
 await R(()=>sb.from("settings").upsert({key:"kpay_note",value:$("#nt").value}));$("#st").textContent="✅ သိမ်းပြီး"};
